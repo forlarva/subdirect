@@ -1,58 +1,27 @@
-from flask import Flask, request, Response
+import os
 import requests
+from flask import Flask, request, Response
 
 app = Flask(__name__)
 
-@app.route("/")
-def home():
-    return "OK"
+@app.route('/sub', methods=['GET'])
+def dynamic_proxy():
+    target_url = request.args.get('url')
+    
+    if not target_url:
+        return "Hata: Lütfen bir URL belirtin (Örn: /sub?url=http...)", 400
 
-
-@app.route("/sub")
-def sub():
-
-    url = request.args.get("url")
-
-    if not url:
-        return "missing url", 400
+    # GÜVENLİK KONTROLÜ: Sadece senin IP ve Port'una izin veriyoruz
+    if "207.180.239.205:8627" not in target_url:
+         return "Erişim Reddedildi: Sadece yetkili sunucuya izin var.", 403
 
     try:
-        r = requests.get(
-            url,
-            timeout=15,
-            allow_redirects=True
-        )
-
-        excluded = [
-            "content-encoding",
-            "content-length",
-            "transfer-encoding",
-            "connection"
-        ]
-
-        headers = {
-            k: v for k, v in r.headers.items()
-            if k.lower() not in excluded
-        }
-
-        return Response(
-            r.content,
-            status=r.status_code,
-            headers=headers
-        )
-
+        resp = requests.get(target_url, timeout=10)
+        return Response(resp.content, status=resp.status_code, content_type=resp.headers.get('Content-Type'))
     except Exception as e:
-        return str(e), 500
+        return f"Proxy Hatası: {str(e)}", 500
 
-
-@app.route("/vip/<token>")
-def vip(token):
-
-    return {
-        "status": "ok",
-        "token": token
-    }
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+if __name__ == '__main__':
+    # Cloud Run, uygulamana otomatik olarak bir PORT atar, onu dinlemeliyiz
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port)
