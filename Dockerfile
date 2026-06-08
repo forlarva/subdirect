@@ -1,9 +1,11 @@
-FROM python:3.11-slim
+FROM python:3.9-slim
 
 WORKDIR /app
 
-COPY . .
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN pip install -r requirements.txt
+COPY app.py .
 
-CMD exec gunicorn --bind :8080 app:app
+# Uygulamayı Gunicorn ile, Cloud Run'ın verdiği portta başlat
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 app:app
